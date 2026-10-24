@@ -2,7 +2,10 @@
 const {testing} = require('../providers/pencurimovie');
 const title = process.argv[2] || 'Badut Gendong';
 const year = process.argv[3] || '2026';
-testing.findStreams({title, year}, 'movie').then(async streams => {
+const mediaType = process.argv[4] || 'movie';
+const season = Number(process.argv[5] || 1);
+const episode = Number(process.argv[6] || 1);
+testing.findStreams({title, year}, mediaType, season, episode).then(async streams => {
   console.log('Streams extracted:', streams.length);
   if (!streams.length) throw new Error('Tiada video terus ditemui; periksa host dan tajuk.');
   let playable = 0;
