@@ -30,7 +30,11 @@ function Expand-BridgeArchive {
 $windowsVersion = [Environment]::OSVersion.Version
 try { $windowsVersion = [version](Get-CimInstance Win32_OperatingSystem -ErrorAction Stop).Version } catch {}
 if ($windowsVersion.Major -lt 10) {
-    throw 'Windows ini terlalu lama untuk Node.js 18/22 rasmi. Bridge memerlukan Windows 10 / Windows Server 2016 atau lebih baharu. Tiada muat turun atau pemasangan dibuat.'
+    $legacyScript = Join-Path $PSScriptRoot 'start-legacy.ps1'
+    if (-not (Test-Path -LiteralPath $legacyScript)) { throw 'Muat turun dan extract ZIP repo baharu untuk mendapatkan bridge .NET Server 2012 R2.' }
+    Write-Host 'Windows lama dikesan. Menggunakan bridge .NET Framework tanpa Node.js.'
+    & $legacyScript -QuickTunnel:$QuickTunnel -PublicBase $PublicBase -Port $Port
+    return
 }
 $installRoot = Join-Path $env:LOCALAPPDATA 'NuvioAbyssBridge'
 New-Item -ItemType Directory -Path $installRoot -Force | Out-Null
