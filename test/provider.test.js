@@ -82,6 +82,33 @@ test('invalid input and missing credentials make no network requests', async () 
   assert.equal((await provider.getStreams('123', 'tv', 1, 0)).length, 0);
 });
 
+test('TV episodes return MixDrop immediately without waiting on an unresponsive fallback', async () => {
+  const calls = [];
+  const provider = runtime(async (url, options) => {
+    calls.push(url);
+    let text;
+    if (url.includes('api.themoviedb.org')) text = JSON.stringify({name: 'Lanterns', first_air_date: '2026-01-01'});
+    else if (url.includes('/?s=')) text = `<a href='${base}/tvshows/lanterns/' title='Lanterns'></a>`;
+    else if (url.endsWith('/tvshows/lanterns/')) text = `<a href='${base}/episodes/lanterns-s1-ep3/'></a><a href='${base}/episodes/lanterns-s1-ep7/'></a>`;
+    else if (/\/episodes\//.test(url)) text = `<li class='zetaflix_player_option' data-type='ep' data-post='181988' data-nume='1'><span class='opt-titl'>playe</span></li><li class='zetaflix_player_option' data-type='ep' data-post='181988' data-nume='9'><span class='opt-titl'>mixdr</span></li>`;
+    else if (url.includes('admin-ajax.php')) {
+      // If the fallback is ever requested, it never finishes, as on a slow host.
+      if (options.body.includes('nume=1')) return new Promise(() => {});
+      assert.match(options.body, /type=ep&nume=9/);
+      text = JSON.stringify({embed_url: '<iframe src="https://mixdrop.example/e/episode"></iframe>'});
+    } else if (url === 'https://mixdrop.example/e/episode') text = 'MDCore.wurl="//cdn.example/episode.mp4?s=token"';
+    else throw new Error('Unexpected request ' + url);
+    return {ok: true, text: async () => text};
+  }, {TMDB_API_KEY: 'test-key'});
+  for (const episode of [3, 7]) {
+    const streams = await provider.getStreams('123', 'tv', 1, episode);
+    assert.equal(streams.length, 1);
+    assert.equal(streams[0].url, 'https://cdn.example/episode.mp4?s=token');
+    assert.ok(calls.includes(base + '/episodes/lanterns-s1-ep' + episode + '/'));
+  }
+  assert.equal(calls.filter(url => url.includes('admin-ajax.php')).length, 2);
+});
+
 test('manifest points to an executable provider with matching version', () => {
   const scraper = require('../manifest.json').scrapers[0];
   assert.equal(scraper.version, require('../package.json').version);
