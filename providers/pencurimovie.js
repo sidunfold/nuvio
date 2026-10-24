@@ -172,6 +172,21 @@ function acceptsQuality(quality) {
   return selected === 'all' || selected === quality;
 }
 
+function resolveAbyss(url) {
+  var bridge = String(settings().abyssBridgeUrl || '').replace(/\/+$/, '');
+  if (!bridge) return Promise.resolve([]);
+  if (!/^https:\/\/[^\s?#]+$/i.test(bridge) && !/^http:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?$/i.test(bridge)) return Promise.reject(new Error('Bridge mesti menggunakan HTTPS.'));
+  var slug = (url.match(/[?&]v=([a-z0-9_-]+)/i) || [])[1];
+  if (!slug) return Promise.resolve([]);
+  var headers = {};
+  if (settings().abyssBridgeToken) headers.Authorization = 'Bearer ' + settings().abyssBridgeToken;
+  return request(bridge + '/resolve?v=' + encodeURIComponent(slug), {headers: headers}).then(function (text) {
+    var streams = JSON.parse(text).streams || [];
+    return streams.filter(function (s) { return typeof s.url === 'string' && s.url.indexOf(bridge + '/stream/') === 0; })
+      .map(function (s) { return {url: s.url, referer: bridge + '/', quality: qualityLabel(s.quality)}; });
+  });
+}
+
 function resolveEmbed(value, referer, depth) {
   var direct = safeUrl(value, referer);
   if (!direct) {
@@ -179,6 +194,7 @@ function resolveEmbed(value, referer, depth) {
     direct = iframe ? safeUrl(attr(iframe, 'src'), referer) : '';
   }
   if (!direct) return Promise.resolve([]);
+  if (/^https?:\/\/(?:abyss\.[a-z0-9.-]+|(?:[a-z0-9-]+\.)?abyss\.to|abysscdn\.com|playhydrax\.com)\//i.test(direct)) return resolveAbyss(direct);
   if (/\.(?:mp4|m3u8|mkv)(?:[?#]|$)/i.test(direct)) return Promise.resolve([{url: direct, referer: referer, quality: qualityLabel(direct.split('?')[0])}]);
   if (depth >= 2) return Promise.resolve([]);
   return request(direct, {headers: {Referer: referer}}).then(function (html) {
@@ -191,10 +207,15 @@ function resolveEmbed(value, referer, depth) {
 
 function collectPage(url, html, base) {
   var options = playerOptions(html);
+  var selectedServer = settings().server || 'auto';
+  var hasBridge = !!settings().abyssBridgeUrl;
+  function preferred(o) { return /^mixdr(?:op)?$/i.test(o.host) || (hasBridge && /^abyss$/i.test(o.host)); }
+  if (selectedServer === 'abyss') options = options.filter(function (o) { return /^abyss$/i.test(o.host); });
+  if (selectedServer === 'mixdrop') options = options.filter(function (o) { return /^mixdr(?:op)?$/i.test(o.host); });
   // Prefer the supported host and cap concurrent requests to stay within the app's budget.
-  options.sort(function (a, b) { return Number(!/^mixdr(?:op)?$/i.test(a.host)) - Number(!/^mixdr(?:op)?$/i.test(b.host)); });
+  options.sort(function (a, b) { return Number(!preferred(a)) - Number(!preferred(b)); });
   options = options.slice(0, 8);
-  var preferredCount = options.filter(function (o) { return /^mixdr(?:op)?$/i.test(o.host); }).length;
+  var preferredCount = options.filter(preferred).length;
   var found = [], start = Date.now();
   function batch(index) {
     // Return a working result before slow fallback hosts can exhaust Nuvio's deadline.
@@ -253,6 +274,11 @@ function getStreams(tmdbId, mediaType, season, episode) {
 function onSettings() {
   return Promise.resolve([
     {type: 'header', label: 'PencuriMovie MalaySub · Beta'},
+    {type: 'select', key: 'server', label: 'Server pilihan', defaultValue: 'auto', options: [
+      {label: 'Automatik (server disokong)', value: 'auto'},
+      {label: 'MixDrop', value: 'mixdrop'},
+      {label: 'Abyss (perlukan bridge)', value: 'abyss'}
+    ]},
     {type: 'select', key: 'resolution', label: 'Resolusi pilihan', defaultValue: 'all', options: [
       {label: 'Semua resolusi tersedia', value: 'all'},
       {label: '2160p sahaja', value: '2160p'},
@@ -261,7 +287,9 @@ function onSettings() {
       {label: '480p sahaja', value: '480p'}
     ]},
     {type: 'info', label: 'Resolusi berdasarkan label fail/server, bukan ukuran piksel. Pilih Semua untuk melihat semua sumber. Jika resolusi pilihan tiada, tiada sumber dipaparkan; video tidak ditukar resolusinya.'},
-    {type: 'info', label: 'MixDrop dan video terus disokong. Pelayan lain mungkin tidak mengembalikan sumber. Sarikata bergantung pada video sumber.'},
+    {type: 'info', label: 'Abyss memerlukan bridge aktif di VPS. Tanpa bridge, gunakan MixDrop. Sarikata bergantung pada video sumber.'},
+    {type: 'text', key: 'abyssBridgeUrl', label: 'Abyss bridge URL (HTTPS)', placeholder: 'https://bridge.example.com'},
+    {type: 'text', key: 'abyssBridgeToken', label: 'Abyss bridge token', isPassword: true, placeholder: 'Token daripada VPS'},
     {type: 'text', key: 'baseUrl', label: 'Alamat laman sumber', defaultValue: DEFAULT_BASE, placeholder: DEFAULT_BASE},
     {type: 'text', key: 'tmdbApiKey', label: 'TMDB API key (pilihan jika aplikasi menyediakannya)', isPassword: true, placeholder: 'API key v3'}
   ]);
