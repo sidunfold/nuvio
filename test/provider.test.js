@@ -33,6 +33,13 @@ test('selects episode 1 without confusing episode 10 or another season', () => {
   assert.equal(h.episodeUrl(html, 3, 1, base), '');
 });
 
+test('finds Lanterns ep-style slugs while preserving the requested season and episode', () => {
+  const html = `<a href='${base}/episodes/lanterns-s1-ep8/'></a><a href='${base}/episodes/lanterns-s1-ep10/'></a><a href='${base}/episodes/lanterns-s2-ep1/'></a><a href='${base}/episodes/lanterns-s1-ep1/'></a>`;
+  assert.equal(h.episodeUrl(html, 1, 1, base), base + '/episodes/lanterns-s1-ep1/');
+  assert.equal(h.episodeUrl(html, 1, 8, base), base + '/episodes/lanterns-s1-ep8/');
+  assert.equal(h.episodeUrl(html, 1, 2, base), '');
+});
+
 test('unpacks MixDrop without eval and preserves signed URL parameters', () => {
   const packed = "eval(function(p,a,c,k,e,d){return p}('0.1=\"//2/3.4?s=token&e=123\";',10,5,'MDCore|wurl|cdn.example|video|mp4'.split('|'),0,{}))";
   assert.deepEqual(h.directLinks(packed, 'https://mixdrop.example/e/1'), ['https://cdn.example/video.mp4?s=token&e=123']);
