@@ -165,8 +165,10 @@ function collectPage(url, html, base) {
   options = options.slice(0, 8);
   var found = [], start = Date.now();
   function batch(index) {
-    if (index >= options.length || Date.now() - start > 35000) return Promise.resolve(found);
-    return Promise.all(options.slice(index, index + 3).map(function (o) {
+    // Return a working result before slow fallback hosts can exhaust Nuvio's deadline.
+    if (found.length || index >= options.length || Date.now() - start > 35000) return Promise.resolve(found);
+    var batchSize = index === 0 && /^mixdr(?:op)?$/i.test(options[0].host) ? 1 : 3;
+    return Promise.all(options.slice(index, index + batchSize).map(function (o) {
       var body = 'action=zeta_player_ajax&post=' + encodeURIComponent(o.post) + '&type=' + encodeURIComponent(o.type) + '&nume=' + encodeURIComponent(o.nume);
       return request(base + '/wp-admin/admin-ajax.php', {method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded', Referer: url}, body: body})
         .then(function (s) { var data = JSON.parse(s); return resolveEmbed(data.embed_url || '', url, 0); })
@@ -176,7 +178,7 @@ function collectPage(url, html, base) {
               quality: 'Unknown', headers: {Referer: s.referer, 'User-Agent': USER_AGENT}});
           });
         }).catch(function (e) { console.log('[MalaySub] ' + o.host + ': ' + e.message); });
-    })).then(function () { return batch(index + 3); });
+    })).then(function () { return batch(index + batchSize); });
   }
   return batch(0).then(function (streams) {
     var seen = {};
