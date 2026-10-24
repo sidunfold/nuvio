@@ -8,7 +8,8 @@
     "smoke": "node scripts/smoke.js",
     "start": "node scripts/serve.js",
     "abyss:bridge": "node bridge/server.js",
-    "abyss:smoke": "node scripts/smoke-abyss.js"
+    "abyss:smoke": "node scripts/smoke-abyss.js",
+    "abyss:legacy-smoke": "node scripts/smoke-legacy.js"
   },
   "engines": { "node": ">=18" }
 }
