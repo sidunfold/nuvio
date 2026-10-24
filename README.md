@@ -2,7 +2,9 @@
 
 Provider JavaScript untuk Nuvio, menggunakan `https://pencurimoviesubmalay26.site/`.
 
-**Status: beta 0.1.0.** Pasang sebagai repositori **Plugins**, bukan add-on Stremio. Kod berjalan pada peranti pengguna; tiada backend berbayar diperlukan.
+**Status: beta 0.1.1.** Pasang sebagai repositori **Plugins**, bukan add-on Stremio. Kod berjalan pada peranti pengguna; tiada backend berbayar diperlukan.
+
+Versi 0.1.1 membetulkan pautan episod `s1-ep1` (contohnya Lanterns) sambil mengekalkan sokongan `s1-e1`. Pilihan pelayan `mixdr` turut diberi keutamaan sebagai MixDrop.
 
 ## Fungsi dan had
 
@@ -41,6 +43,8 @@ npm start
 `smoke` melakukan carian langsung dan membaca hanya bahagian awal respons video untuk pengesahan; ia tidak memuat turun filem penuh. URL video boleh luput dan diekstrak semula setiap kali provider digunakan.
 
 Untuk tajuk lain: `npm run smoke -- "Badut Gendong" "2026"`.
+
+Untuk siri: `npm run smoke -- "Lanterns" "2026" tv 1 1` (musim 1, episod 1).
 
 Untuk Plugin Tester pada peranti dalam Wi-Fi yang sama, gunakan `http://IP-KOMPUTER:3000/manifest.json`. `localhost` pada telefon merujuk telefon sendiri. Pelayan pembangunan hanya menyediakan manifest dan kod provider.
 
