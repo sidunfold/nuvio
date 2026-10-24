@@ -5,6 +5,33 @@ param(
     [int]$Port = 3147
 )
 $ErrorActionPreference = 'Stop'
+function Expand-BridgeArchive {
+    param([string]$ArchivePath, [string]$DestinationPath)
+    # Expand-Archive is unavailable on older Windows PowerShell installations.
+    Add-Type -AssemblyName System.IO.Compression
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    $destinationRoot = [IO.Path]::GetFullPath($DestinationPath).TrimEnd('\', '/') + [IO.Path]::DirectorySeparatorChar
+    [IO.Directory]::CreateDirectory($destinationRoot) | Out-Null
+    $archive = [IO.Compression.ZipFile]::OpenRead($ArchivePath)
+    try {
+        foreach ($entry in $archive.Entries) {
+            $targetPath = [IO.Path]::GetFullPath((Join-Path $destinationRoot $entry.FullName))
+            if (-not $targetPath.StartsWith($destinationRoot, [StringComparison]::OrdinalIgnoreCase)) { throw 'Laluan ZIP di luar folder pemasangan ditolak.' }
+            if ([string]::IsNullOrEmpty($entry.Name)) {
+                [IO.Directory]::CreateDirectory($targetPath) | Out-Null
+            } else {
+                [IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($targetPath)) | Out-Null
+                [IO.Compression.ZipFileExtensions]::ExtractToFile($entry, $targetPath, $true)
+            }
+        }
+    } finally { $archive.Dispose() }
+}
+# Give a clear error before downloading binaries that cannot run on this Windows.
+$windowsVersion = [Environment]::OSVersion.Version
+try { $windowsVersion = [version](Get-CimInstance Win32_OperatingSystem -ErrorAction Stop).Version } catch {}
+if ($windowsVersion.Major -lt 10) {
+    throw 'Windows ini terlalu lama untuk Node.js 18/22 rasmi. Bridge memerlukan Windows 10 / Windows Server 2016 atau lebih baharu. Tiada muat turun atau pemasangan dibuat.'
+}
 $installRoot = Join-Path $env:LOCALAPPDATA 'NuvioAbyssBridge'
 New-Item -ItemType Directory -Path $installRoot -Force | Out-Null
 $serverPath = Join-Path $PSScriptRoot 'server.js'
@@ -27,7 +54,7 @@ else {
         $checksums = (Invoke-WebRequest ($downloadBase + 'SHASUMS256.txt') -UseBasicParsing).Content
         $match = [regex]::Match($checksums, '(?m)^([a-f0-9]{64})\s+' + [regex]::Escape($archiveName) + '\r?$')
         if (-not $match.Success -or (Get-FileHash -LiteralPath $archivePath -Algorithm SHA256).Hash.ToLowerInvariant() -ne $match.Groups[1].Value) { throw 'Semakan SHA256 Node.js gagal.' }
-        Expand-Archive -LiteralPath $archivePath -DestinationPath $installRoot -Force
+        Expand-BridgeArchive -ArchivePath $archivePath -DestinationPath $installRoot
     }
 }
 $nodeVersion = & $nodeExe -p 'parseInt(process.versions.node)'
