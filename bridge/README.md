@@ -6,6 +6,8 @@ Abyss menggunakan metadata AES-CTR dan fail bersegmen. Bridge menukarkan permint
 
 ## Windows: cara ujian paling mudah
 
+Perlukan Windows 10 / Windows Server 2016 atau lebih baharu untuk Node.js rasmi. Skrip extract ZIP melalui .NET, jadi tidak memerlukan cmdlet `Expand-Archive`. Windows Server 2012/R2 dan versi lebih lama tidak boleh menjalankan runtime Node.js yang diperlukan; menaik taraf PowerShell sahaja tidak menyelesaikan had Windows tersebut.
+
 1. Masuk ke VPS menggunakan Remote Desktop seperti biasa.
 2. Muat turun dan extract [ZIP repo](https://github.com/sidunfold/nuvio/archive/refs/heads/main.zip). Jangan jalankan terus dalam ZIP.
 3. Buka PowerShell dalam folder `nuvio-main` dan jalankan:
