@@ -1,12 +1,14 @@
 {
   "name": "nuvio-malaysub-provider",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "description": "PencuriMovie MalaySub provider for Nuvio",
   "scripts": {
-    "test": "node --test test/provider.test.js",
+    "test": "node --test test/provider.test.js test/bridge.test.js",
     "smoke": "node scripts/smoke.js",
-    "start": "node scripts/serve.js"
+    "start": "node scripts/serve.js",
+    "abyss:bridge": "node bridge/server.js",
+    "abyss:smoke": "node scripts/smoke-abyss.js"
   },
   "engines": { "node": ">=18" }
 }
