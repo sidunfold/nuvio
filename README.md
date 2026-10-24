@@ -15,7 +15,7 @@ Provider JavaScript untuk Nuvio, menggunakan `https://pencurimoviesubmalay26.sit
 
 ## Pasang dalam Nuvio
 
-Repo kini private. URL ini **hanya boleh dipasang selepas repo dijadikan public**, atau fail dihos pada HTTPS yang boleh dicapai tanpa log masuk. Jangan letakkan token GitHub dalam URL pemasangan.
+Repo ini public. Gunakan URL manifest berikut untuk pemasangan tanpa log masuk GitHub.
 
 ```text
 https://raw.githubusercontent.com/sidunfold/nuvio/refs/heads/main/manifest.json
