@@ -6,6 +6,8 @@ Provider JavaScript untuk Nuvio, menggunakan `https://pencurimoviesubmalay26.sit
 
 Versi 0.3.0 menambah **Server pilihan → Abyss** dengan pilihan resolusi daripada metadata Abyss. Sokongan ini memerlukan pemasangan [Abyss bridge](bridge/README.md); kod sahaja dalam repo belum mengaktifkan hosting pada VPS. MixDrop terus berfungsi tanpa bridge.
 
+Untuk **Windows Server 2012 R2**, tersedia bridge alternatif .NET Framework tanpa Node.js: [panduan legacy](bridge/README.md#windows-server-2012-r2-bridge-net-framework). Jalankan mod `-LocalOnly` untuk menguji VPS dahulu. Akses HTTPS awam belum disediakan secara automatik; keserasian pada VPS pengguna dan main balik Nuvio masih perlu disahkan.
+
 Versi 0.2.0 menambah **Resolusi pilihan** dalam tetapan provider: Semua, 2160p, 1080p, 720p atau 480p. Lalai ialah Semua. Kad sumber memaparkan label resolusi yang dikenal pasti; pilih sumber tersebut untuk main balik. Pilihan ini tidak menghasilkan salinan video baharu. Jika server hanya menyediakan 1080p, 720p tidak boleh dipilih untuk tajuk itu. Penapis khusus mengabaikan sumber dengan label tidak diketahui dan tidak jatuh balik ke resolusi lain.
 
 Versi 0.1.2 memulangkan MixDrop sebaik sahaja sumber ditemui, tanpa menunggu pelayan lain yang lambat. Fallback hanya dicuba jika sumber pilihan tidak berjaya. Ini mengurangkan risiko tamat masa pada episod dengan banyak server.
