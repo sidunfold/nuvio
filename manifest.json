@@ -1,12 +1,12 @@
 {
   "name": "Nuvio MalaySub — sidunfold",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "scrapers": [
     {
       "id": "pencurimovie-malaysub",
       "name": "PencuriMovie MalaySub",
       "description": "Filem dan episod MalaySub. Beta: MixDrop dan pautan video terus; sesetengah pelayan belum disokong.",
-      "version": "0.1.2",
+      "version": "0.2.0",
       "author": "sidunfold",
       "supportedTypes": ["movie", "tv"],
       "filename": "providers/pencurimovie.js",
