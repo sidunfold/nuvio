@@ -141,6 +141,37 @@ function directLinks(html, pageUrl) {
   return links.slice(0, 8);
 }
 
+function qualityLabel(value) {
+  var text = plain(value);
+  var numeric = text.match(/^(2160|1440|1080|720|576|480|360|240)$/);
+  if (numeric) return numeric[1] + 'p';
+  var match = text.match(/(?:^|[^a-z0-9])(2160|1440|1080|720|576|480|360|240)p(?:[^a-z0-9]|$)/i);
+  if (match) return match[1] + 'p';
+  match = text.match(/(?:^|\D)\d{3,4}\s*[x\u00d7]\s*(2160|1440|1080|720|576|480|360|240)(?:\D|$)/i);
+  return match ? match[1] + 'p' : 'Unknown';
+}
+
+function videoQuality(html, url, pageUrl, singleVideo) {
+  var tags = html.match(/<source\b[^>]*>/gi) || [];
+  for (var i = 0; i < tags.length; i++) {
+    if (safeUrl(attr(tags[i], 'src'), pageUrl) !== url) continue;
+    var quality = qualityLabel(attr(tags[i], 'label') || attr(tags[i], 'data-quality') || attr(tags[i], 'res'));
+    if (quality !== 'Unknown') return quality;
+  }
+  var filename = url.split('?')[0].split('/').pop();
+  try { filename = decodeURIComponent(filename); } catch (_) {}
+  var fromUrl = qualityLabel(filename);
+  if (fromUrl !== 'Unknown') return fromUrl;
+  // This is the host's file title, not unrelated page text, adverts or recommendations.
+  var title = (html.match(/<div\b[^>]*class=["']title["'][^>]*>\s*<a\b[^>]*>([\s\S]*?)<\/a>/i) || [])[1];
+  return singleVideo && title ? qualityLabel(title) : 'Unknown';
+}
+
+function acceptsQuality(quality) {
+  var selected = settings().resolution || 'all';
+  return selected === 'all' || selected === quality;
+}
+
 function resolveEmbed(value, referer, depth) {
   var direct = safeUrl(value, referer);
   if (!direct) {
@@ -148,11 +179,11 @@ function resolveEmbed(value, referer, depth) {
     direct = iframe ? safeUrl(attr(iframe, 'src'), referer) : '';
   }
   if (!direct) return Promise.resolve([]);
-  if (/\.(?:mp4|m3u8|mkv)(?:[?#]|$)/i.test(direct)) return Promise.resolve([{url: direct, referer: referer}]);
+  if (/\.(?:mp4|m3u8|mkv)(?:[?#]|$)/i.test(direct)) return Promise.resolve([{url: direct, referer: referer, quality: qualityLabel(direct.split('?')[0])}]);
   if (depth >= 2) return Promise.resolve([]);
   return request(direct, {headers: {Referer: referer}}).then(function (html) {
     var urls = directLinks(html, direct);
-    if (urls.length) return urls.map(function (url) { return {url: url, referer: direct}; });
+    if (urls.length) return urls.map(function (url) { return {url: url, referer: direct, quality: videoQuality(html, url, direct, urls.length === 1)}; });
     var iframe = (html.match(/<iframe\b[^>]*>/i) || [])[0];
     return iframe ? resolveEmbed(attr(iframe, 'src'), direct, depth + 1) : [];
   });
@@ -163,19 +194,23 @@ function collectPage(url, html, base) {
   // Prefer the supported host and cap concurrent requests to stay within the app's budget.
   options.sort(function (a, b) { return Number(!/^mixdr(?:op)?$/i.test(a.host)) - Number(!/^mixdr(?:op)?$/i.test(b.host)); });
   options = options.slice(0, 8);
+  var preferredCount = options.filter(function (o) { return /^mixdr(?:op)?$/i.test(o.host); }).length;
   var found = [], start = Date.now();
   function batch(index) {
     // Return a working result before slow fallback hosts can exhaust Nuvio's deadline.
-    if (found.length || index >= options.length || Date.now() - start > 35000) return Promise.resolve(found);
-    var batchSize = index === 0 && /^mixdr(?:op)?$/i.test(options[0].host) ? 1 : 3;
+    if ((found.length && index >= preferredCount) || index >= options.length || Date.now() - start > 35000) return Promise.resolve(found);
+    // Read all preferred options so distinct available resolutions remain selectable.
+    var batchSize = index < preferredCount ? Math.min(3, preferredCount - index) : 3;
     return Promise.all(options.slice(index, index + batchSize).map(function (o) {
       var body = 'action=zeta_player_ajax&post=' + encodeURIComponent(o.post) + '&type=' + encodeURIComponent(o.type) + '&nume=' + encodeURIComponent(o.nume);
       return request(base + '/wp-admin/admin-ajax.php', {method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded', Referer: url}, body: body})
         .then(function (s) { var data = JSON.parse(s); return resolveEmbed(data.embed_url || '', url, 0); })
         .then(function (streams) {
           streams.forEach(function (s) {
-            found.push({name: 'PencuriMovie MalaySub', title: (o.label || 'MalaySub') + ' · ' + o.host, url: s.url,
-              quality: 'Unknown', headers: {Referer: s.referer, 'User-Agent': USER_AGENT}});
+            var quality = s.quality && s.quality !== 'Unknown' ? s.quality : qualityLabel(o.label);
+            if (!acceptsQuality(quality)) return;
+            found.push({name: 'PencuriMovie MalaySub', title: quality + ' · ' + (o.label || 'MalaySub') + ' · ' + o.host, url: s.url,
+              quality: quality, headers: {Referer: s.referer, 'User-Agent': USER_AGENT}});
           });
         }).catch(function (e) { console.log('[MalaySub] ' + o.host + ': ' + e.message); });
     })).then(function () { return batch(index + batchSize); });
@@ -218,6 +253,14 @@ function getStreams(tmdbId, mediaType, season, episode) {
 function onSettings() {
   return Promise.resolve([
     {type: 'header', label: 'PencuriMovie MalaySub · Beta'},
+    {type: 'select', key: 'resolution', label: 'Resolusi pilihan', defaultValue: 'all', options: [
+      {label: 'Semua resolusi tersedia', value: 'all'},
+      {label: '2160p sahaja', value: '2160p'},
+      {label: '1080p sahaja', value: '1080p'},
+      {label: '720p sahaja', value: '720p'},
+      {label: '480p sahaja', value: '480p'}
+    ]},
+    {type: 'info', label: 'Resolusi berdasarkan label fail/server, bukan ukuran piksel. Pilih Semua untuk melihat semua sumber. Jika resolusi pilihan tiada, tiada sumber dipaparkan; video tidak ditukar resolusinya.'},
     {type: 'info', label: 'MixDrop dan video terus disokong. Pelayan lain mungkin tidak mengembalikan sumber. Sarikata bergantung pada video sumber.'},
     {type: 'text', key: 'baseUrl', label: 'Alamat laman sumber', defaultValue: DEFAULT_BASE, placeholder: DEFAULT_BASE},
     {type: 'text', key: 'tmdbApiKey', label: 'TMDB API key (pilihan jika aplikasi menyediakannya)', isPassword: true, placeholder: 'API key v3'}
@@ -227,4 +270,5 @@ function onSettings() {
 module.exports = {getStreams: getStreams, onSettings: onSettings};
 // Helpers for offline regression tests and the developer smoke check.
 module.exports.testing = {searchEntries: searchEntries, playerOptions: playerOptions, episodeUrl: episodeUrl,
-  unpack: unpack, directLinks: directLinks, findStreams: findStreams, safeUrl: safeUrl};
+  unpack: unpack, directLinks: directLinks, findStreams: findStreams, safeUrl: safeUrl,
+  qualityLabel: qualityLabel, videoQuality: videoQuality, acceptsQuality: acceptsQuality};
