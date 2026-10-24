@@ -2,7 +2,9 @@
 
 Provider JavaScript untuk Nuvio, menggunakan `https://pencurimoviesubmalay26.site/`.
 
-**Status: beta 0.1.1.** Pasang sebagai repositori **Plugins**, bukan add-on Stremio. Kod berjalan pada peranti pengguna; tiada backend berbayar diperlukan.
+**Status: beta 0.1.2.** Pasang sebagai repositori **Plugins**, bukan add-on Stremio. Kod berjalan pada peranti pengguna; tiada backend berbayar diperlukan.
+
+Versi 0.1.2 memulangkan MixDrop sebaik sahaja sumber ditemui, tanpa menunggu pelayan lain yang lambat. Fallback hanya dicuba jika sumber pilihan tidak berjaya. Ini mengurangkan risiko tamat masa pada episod dengan banyak server.
 
 Versi 0.1.1 membetulkan pautan episod `s1-ep1` (contohnya Lanterns) sambil mengekalkan sokongan `s1-e1`. Pilihan pelayan `mixdr` turut diberi keutamaan sebagai MixDrop.
 
