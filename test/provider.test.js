@@ -167,3 +167,24 @@ test('an unknown-quality video cannot pass a specific resolution filter', async 
     assert.equal(h.acceptsQuality('Unknown'), true);
   } finally { global.SCRAPER_SETTINGS = original; }
 });
+
+test('Abyss uses the configured authenticated bridge and honors resolution and server selection', async () => {
+  const provider = runtime(async (url, options) => {
+    let text;
+    if (url.includes('api.themoviedb.org')) text = JSON.stringify({title: 'Example'});
+    else if (url.includes('/?s=')) text = `<a href='${base}/movies/example/' title='Example'></a>`;
+    else if (url.endsWith('/movies/example/')) text = `<li class='zetaflix_player_option' data-type='mv' data-post='12' data-nume='1'><span class='opt-titl'>abyss</span></li><li class='zetaflix_player_option' data-type='mv' data-post='12' data-nume='2'><span class='opt-titl'>mixdr</span></li>`;
+    else if (url.includes('admin-ajax.php')) {
+      assert.match(options.body, /nume=1$/);
+      text = JSON.stringify({embed_url: '<iframe src="https://abyss.msmbot.club/?v=fixture"></iframe>'});
+    } else if (url === 'https://bridge.example/resolve?v=fixture') {
+      assert.equal(options.headers.Authorization, 'Bearer fixture-token');
+      text = JSON.stringify({streams: [{url: 'https://bridge.example/stream/fixture/5.mp4?sig=test', quality: '1080p'}, {url: 'https://bridge.example/stream/fixture/4.mp4?sig=test', quality: '720p'}]});
+    } else throw new Error('Unexpected request ' + url);
+    return {ok: true, text: async () => text};
+  }, {TMDB_API_KEY: 'fixture', SCRAPER_SETTINGS: {server: 'abyss', resolution: '720p', abyssBridgeUrl: 'https://bridge.example', abyssBridgeToken: 'fixture-token'}});
+  const streams = await provider.getStreams('123', 'movie');
+  assert.equal(streams.length, 1);
+  assert.equal(streams[0].quality, '720p');
+  assert.match(streams[0].url, /\/stream\/fixture\/4\.mp4/);
+});
