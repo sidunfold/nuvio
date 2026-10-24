@@ -115,3 +115,55 @@ test('manifest points to an executable provider with matching version', () => {
   assert.ok(fs.existsSync(require('node:path').join(__dirname, '..', scraper.filename)));
   assert.deepEqual(scraper.supportedTypes, ['movie', 'tv']);
 });
+
+test('quality comes from the matching video or its file title, never unrelated page text', () => {
+  const page = 'https://mixdrop.example/e/1';
+  const url = 'https://cdn.example/opaque.mp4';
+  assert.equal(h.videoQuality('<div class="title"><a>Lanterns.S01E03.1080p.WEB.mp4</a></div>', url, page, true), '1080p');
+  assert.equal(h.videoQuality('<div>Watch more movies in 1080p</div><img alt="1080p">', url, page, true), 'Unknown');
+  const html = `<source src='${url}' label='720p'><source src='https://cdn.example/other.mp4' label='1080p'>`;
+  assert.equal(h.videoQuality(html, url, page, false), '720p');
+  assert.equal(h.videoQuality('<div class="title"><a>Movie.1080p</a></div>', url, page, false), 'Unknown');
+  assert.equal(h.qualityLabel('1920x1080'), '1080p');
+  assert.equal(h.qualityLabel('720'), '720p');
+  assert.equal(h.qualityLabel('HD'), 'Unknown');
+});
+
+test('all available resolutions remain selectable, and a missing requested resolution returns empty', async () => {
+  for (const selected of ['all', '1080p', '720p', '480p']) {
+    const provider = runtime(async (url, options) => {
+      let text;
+      if (url.includes('api.themoviedb.org')) text = JSON.stringify({title: 'Example', release_date: '2024-01-01'});
+      else if (url.includes('/?s=')) text = `<a href='${base}/movies/example/' title='Example (2024)'></a>`;
+      else if (url.endsWith('/movies/example/')) text = [1, 2].map(n => `<li class='zetaflix_player_option' data-type='mv' data-post='12' data-nume='${n}'><span class='opt-titl'>mixdr</span></li>`).join('');
+      else if (url.includes('admin-ajax.php')) {
+        const number = options.body.match(/nume=(\d+)/)[1];
+        text = JSON.stringify({embed_url: `<iframe src="https://mixdrop.example/e/${number}"></iframe>`});
+      } else if (url.startsWith('https://mixdrop.example/e/')) {
+        const quality = url.endsWith('/1') ? '1080p' : '720p';
+        text = `<div class="title"><a>Example.${quality}.mp4</a></div><source src="https://cdn.example/${quality}.mp4">`;
+      } else throw new Error('Unexpected request ' + url);
+      return {ok: true, text: async () => text};
+    }, {TMDB_API_KEY: 'test-key', SCRAPER_SETTINGS: {resolution: selected}});
+    const streams = await provider.getStreams('123', 'movie');
+    assert.equal(streams.length, selected === 'all' ? 2 : selected === '480p' ? 0 : 1);
+    assert.ok(streams.every(s => selected === 'all' || s.quality === selected));
+    assert.ok(streams.every(s => s.title.startsWith(s.quality + ' · ')));
+    const blueprint = await provider.onSettings();
+    const selector = blueprint.find(x => x.key === 'resolution');
+    assert.equal(selector.defaultValue, 'all');
+    assert.ok(selector.options.some(x => x.value === selected));
+  }
+});
+
+test('an unknown-quality video cannot pass a specific resolution filter', async () => {
+  const original = global.SCRAPER_SETTINGS;
+  try {
+    global.SCRAPER_SETTINGS = {resolution: '1080p'};
+    assert.equal(h.acceptsQuality('Unknown'), false);
+    assert.equal(h.acceptsQuality('720p'), false);
+    assert.equal(h.acceptsQuality('1080p'), true);
+    global.SCRAPER_SETTINGS = {resolution: 'all'};
+    assert.equal(h.acceptsQuality('Unknown'), true);
+  } finally { global.SCRAPER_SETTINGS = original; }
+});
