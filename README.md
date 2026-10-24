@@ -2,7 +2,9 @@
 
 Provider JavaScript untuk Nuvio, menggunakan `https://pencurimoviesubmalay26.site/`.
 
-**Status: beta 0.2.0.** Pasang sebagai repositori **Plugins**, bukan add-on Stremio. Kod berjalan pada peranti pengguna; tiada backend berbayar diperlukan.
+**Status: beta 0.3.0.** Pasang sebagai repositori **Plugins**, bukan add-on Stremio. MixDrop berjalan pada peranti pengguna. Abyss memerlukan bridge aktif pada VPS/komputer.
+
+Versi 0.3.0 menambah **Server pilihan → Abyss** dengan pilihan resolusi daripada metadata Abyss. Sokongan ini memerlukan pemasangan [Abyss bridge](bridge/README.md); kod sahaja dalam repo belum mengaktifkan hosting pada VPS. MixDrop terus berfungsi tanpa bridge.
 
 Versi 0.2.0 menambah **Resolusi pilihan** dalam tetapan provider: Semua, 2160p, 1080p, 720p atau 480p. Lalai ialah Semua. Kad sumber memaparkan label resolusi yang dikenal pasti; pilih sumber tersebut untuk main balik. Pilihan ini tidak menghasilkan salinan video baharu. Jika server hanya menyediakan 1080p, 720p tidak boleh dipilih untuk tajuk itu. Penapis khusus mengabaikan sumber dengan label tidak diketahui dan tidak jatuh balik ke resolusi lain.
 
@@ -15,7 +17,7 @@ Versi 0.1.1 membetulkan pautan episod `s1-ep1` (contohnya Lanterns) sambil menge
 - Carian filem mengikut tajuk/tahun TMDB, dan siri mengikut musim/episod. Tajuk dipadankan secara ketat supaya filem lain tidak dipilih.
 - Menyokong MixDrop dan video MP4/HLS/MKV terus yang terdapat dalam HTML pelayan. Header Referer dan parameter URL dikekalkan.
 - Pilihan iklan `fake` diabaikan. Tiada skrip laman dilaksanakan, API key dibundel atau video disimpan dalam repo.
-- Abyss, RPM, SeekPlay, P2PStream, UpnShare, Byse dan Netu yang memerlukan API khusus/penyulitan **belum disokong**. Tajuk yang hanya menggunakan pelayan tersebut boleh mengembalikan kosong.
+- Abyss disokong secara eksperimen melalui bridge HTTPS yang dikonfigurasi dalam tetapan provider. RPM, SeekPlay, P2PStream, UpnShare, Byse dan Netu **belum disokong**. Tajuk yang hanya menggunakan pelayan tersebut boleh mengembalikan kosong.
 - Label MalaySub datang daripada laman. Provider tidak menghasilkan atau menjamin sarikata. Resolusi dibaca daripada label sumber/nama fail, bukan pemeriksaan piksel video. Label `Unknown` dikekalkan jika tiada label resolusi yang boleh dikenal pasti; provider tidak meneka daripada tajuk filem atau teks iklan.
 - Ujian Node mengesahkan logik provider. Pemasangan dan main balik dalam Nuvio sebenar masih perlu diuji pada peranti pengguna.
 
