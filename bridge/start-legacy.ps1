@@ -80,8 +80,25 @@ try {
     if (-not (Test-Path -LiteralPath $compiler)) { $compiler = Join-Path $env:WINDIR 'Microsoft.NET\Framework\v4.0.30319\csc.exe' }
     if (-not (Test-Path -LiteralPath $compiler)) { throw 'Compiler .NET Framework tidak ditemui.' }
     $bridgeExe = Join-Path $installRoot 'NuvioAbyssLegacy.exe'
-    & $compiler /nologo /target:exe ('/out:' + $bridgeExe) /reference:System.Web.dll /reference:System.Web.Extensions.dll $sourcePath
-    if ($LASTEXITCODE -ne 0) { throw 'Bridge .NET gagal dikompilasi.' }
+    $writeProbe = Join-Path $installRoot ('write-check-' + [guid]::NewGuid().ToString('N') + '.tmp')
+    try { [IO.File]::WriteAllText($writeProbe, 'ok') } catch { throw ('Folder bridge tidak boleh ditulis: ' + $installRoot + '. ' + $_.Exception.Message) }
+    finally { if (Test-Path -LiteralPath $writeProbe) { Remove-Item -LiteralPath $writeProbe } }
+    # Use an explicit working directory and relative output for legacy PowerShell/CSC.
+    $compilerOutput = Join-Path $installRoot 'compiler-output.log'
+    $compilerError = Join-Path $installRoot 'compiler-error.log'
+    $compilerArguments = '/nologo /target:exe /langversion:5 /out:NuvioAbyssLegacy.exe /reference:System.Web.dll /reference:System.Web.Extensions.dll "' + $sourcePath + '"'
+    $previousTemp = $env:TEMP
+    $previousTmp = $env:TMP
+    try {
+        # Disconnected RDP sessions can leave TEMP/TMP pointing at missing folders.
+        $env:TEMP = $installRoot
+        $env:TMP = $installRoot
+        $compileProcess = Start-Process -FilePath $compiler -WorkingDirectory $installRoot -ArgumentList $compilerArguments -WindowStyle Hidden -Wait -PassThru -RedirectStandardOutput $compilerOutput -RedirectStandardError $compilerError
+    } finally { $env:TEMP = $previousTemp; $env:TMP = $previousTmp }
+    if ($compileProcess.ExitCode -ne 0 -or -not (Test-Path -LiteralPath $bridgeExe)) {
+        foreach ($compilerLog in @($compilerOutput, $compilerError)) { if (Test-Path -LiteralPath $compilerLog) { Get-Content -LiteralPath $compilerLog -Tail 20 | Write-Host } }
+        throw ('Bridge .NET gagal dikompilasi. Log: ' + $installRoot)
+    }
     $bridgeProcess = Start-Process -FilePath $bridgeExe -ArgumentList ([string]$Port) -WindowStyle Hidden -PassThru -RedirectStandardOutput (Join-Path $installRoot 'bridge-output.log') -RedirectStandardError (Join-Path $installRoot 'bridge-error.log')
     $healthy = $false
     for ($attempt = 0; $attempt -lt 30; $attempt++) {
