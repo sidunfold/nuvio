@@ -102,7 +102,7 @@ function episodeUrl(html, season, episode, base) {
   for (var i = 0; i < tags.length; i++) {
     var url = safeUrl(attr(tags[i], 'href'), base);
     if (url.indexOf(base + '/episodes/') !== 0) continue;
-    var m = url.match(/-s(\d+)-e(\d+)\/?(?:\?.*)?$/i);
+    var m = url.match(/-s(\d+)-ep?(\d+)\/?(?:\?.*)?$/i);
     if (m && Number(m[1]) === Number(season) && Number(m[2]) === Number(episode)) return url;
   }
   return '';
@@ -161,7 +161,7 @@ function resolveEmbed(value, referer, depth) {
 function collectPage(url, html, base) {
   var options = playerOptions(html);
   // Prefer the supported host and cap concurrent requests to stay within the app's budget.
-  options.sort(function (a, b) { return Number(!/mixdrop/i.test(a.host)) - Number(!/mixdrop/i.test(b.host)); });
+  options.sort(function (a, b) { return Number(!/^mixdr(?:op)?$/i.test(a.host)) - Number(!/^mixdr(?:op)?$/i.test(b.host)); });
   options = options.slice(0, 8);
   var found = [], start = Date.now();
   function batch(index) {
